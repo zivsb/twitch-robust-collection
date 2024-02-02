@@ -1,0 +1,9 @@
+Run this script with the following so that
+chrome can have propper memory allocation
+and mahimahi can have unrestricted network access:
+
+docker run --privileged --device=/dev/net/tun --shm-size=4g -it mahimahi-chrome
+
+
+Run this command to save the csv file:
+./run_script.sh 10
