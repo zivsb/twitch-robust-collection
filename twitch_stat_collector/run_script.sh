@@ -29,6 +29,7 @@ do
     # Loop for each data rate
     for RATE in "${DATA_RATES[@]}"
     do
+    	TRACE_FILE="${RATE}Mbps_trace"
         # Directory for current category and rate
         CURRENT_DIR="${BASE_DIR}/${CATEGORY_NAME}/${RATE}Mbps"
         # Create directory for current category and rate
@@ -53,7 +54,12 @@ do
             TCPDUMP_PID=$!
 
             # Run mm-link with the selected trace file and execute the Python script with category
-            mm-link $TRACE_FILE $TRACE_FILE -- python3 script.py $TWITCH_URL $CATEGORY_NAME $i $CURRENT_DIR $TIMESTAMP
+            
+            # echo "Running the following:"
+            
+            # echo "mm-link $TRACE_FILE $TRACE_FILE -- python3 script.py \"$TWITCH_URL\" \"$CATEGORY_NAME\" \"$i\" \"$CURRENT_DIR\" \"$TIMESTAMP\""
+            
+            mm-link $TRACE_FILE $TRACE_FILE -- python3 script.py "$TWITCH_URL" "$CATEGORY_NAME" "$i" "$CURRENT_DIR" "$TIMESTAMP"
 
             # Stop the packet capture
             kill $TCPDUMP_PID
