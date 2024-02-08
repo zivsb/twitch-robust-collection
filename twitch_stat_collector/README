@@ -5,5 +5,5 @@ and mahimahi can have unrestricted network access:
 docker run --privileged --device=/dev/net/tun --shm-size=4g -it mahimahi-chrome
 
 
-Run this command to save the csv file:
-./run_script.sh 10
+Run this command to run the comprehensive script (make sure to enable permissions first):
+./run_script.sh
