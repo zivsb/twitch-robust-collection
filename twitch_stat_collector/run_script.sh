@@ -29,46 +29,47 @@ do
     # Loop for each data rate
     for RATE in "${DATA_RATES[@]}"
     do
-    	TRACE_FILE="${RATE}Mbps_trace"
-        # Directory for current category and rate
+        TRACE_FILE="${RATE}mbps.trace"s
         CURRENT_DIR="${BASE_DIR}/${CATEGORY_NAME}/${RATE}Mbps"
-        # Create directory for current category and rate
         mkdir -p $CURRENT_DIR
 
-        # Inner loop for iterations 0, 1, 2, 3, and 4
-        for i in {0..4}
-        do
-            # Current timestamp for file naming
-            TIMESTAMP=$(date +%Y%m%dT%H%M%S)
-            echo "Starting category: $CATEGORY_NAME, iteration: $i, rate: ${RATE}Mbps"
+        # Initialize a counter for successful iterations
+        successful_iterations=0
 
-            # Get the ith most popular Twitch URL for the category
+        # Initialize an index for fetching URLs
+        i=0
+
+        # While loop to ensure 5 successful data collections
+        while [ $successful_iterations -lt $TOTAL_ITERATIONS ]
+        do
+            TIMESTAMP=$(date +%Y%m%dT%H%M%S)
+            echo "Attempting category: $CATEGORY_NAME, try: $i, rate: ${RATE}Mbps, successful so far: $successful_iterations"
+
             TWITCH_URL=$(python3 get_url.py $CATEGORY_NAME $i)
             echo "Obtained Twitch URL: $TWITCH_URL"
 
-            # Packet capture file path
-            PCAP_FILE="${CURRENT_DIR}/pcap_iter${i}_${TIMESTAMP}.pcap"
-            
-            # Start packet capture in the background
+            PCAP_FILE="${CURRENT_DIR}/pcap_try${i}_${TIMESTAMP}.pcap"
             tcpdump -w $PCAP_FILE -i any & 
             TCPDUMP_PID=$!
 
-            # Run mm-link with the selected trace file and execute the Python script with category
-            
-            # echo "Running the following:"
-            
-            # echo "mm-link $TRACE_FILE $TRACE_FILE -- python3 script.py \"$TWITCH_URL\" \"$CATEGORY_NAME\" \"$i\" \"$CURRENT_DIR\" \"$TIMESTAMP\""
-            
-            mm-link $TRACE_FILE $TRACE_FILE -- python3 script.py "$TWITCH_URL" "$CATEGORY_NAME" "$i" "$CURRENT_DIR" "$TIMESTAMP"
+            mm-link $TRACE_FILE $TRACE_FILE -- python3 script.py $TWITCH_URL $CATEGORY_NAME $i $CURRENT_DIR $TIMESTAMP | tee temp_output.txt
 
-            # Stop the packet capture
+            if tail -n 1 temp_output.txt | grep -q 'SKIPPING STREAM'; then
+                echo "Stream was age-restricted, skipping..."
+                # Do not increment successful_iterations
+            else
+                echo "Stream completed successfully."
+                let successful_iterations++
+            fi
+
+            rm temp_output.txt
             kill $TCPDUMP_PID
 
-            # Update progress
-            let COMPLETED=i+1
-            let REMAINING=TOTAL_ITERATIONS-COMPLETED
             ELAPSED_TIME=$(($SECONDS / 60))
-            echo "Progress: Category $CATEGORY_NAME, Rate $RATE Mbps - $COMPLETED completed, $REMAINING remaining. Total time taken: $ELAPSED_TIME minutes."
+            echo "Progress: Category $CATEGORY_NAME, Rate $RATE Mbps - $successful_iterations collected, Total time taken: $ELAPSED_TIME minutes."
+
+            # Increment the index for the next URL
+            let i++
         done
     done
 done
