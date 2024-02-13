@@ -2,6 +2,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+from selenium.common.exceptions import NoSuchElementException
 import time
 import json
 import csv
@@ -171,6 +172,16 @@ print("Page loaded")
 temp_interact_element.click()
 print("Clicked on the about panel")
 last_log_timestamp = process_logs(driver, last_log_timestamp)
+
+# Make sure the stream isn't age restricted
+try:
+    age_restricted_element = driver.find_element(By.CSS_SELECTOR, 'div[data-a-target="content-classification-gate-overlay"]')
+    print("Age restricted content detected | SKIPPING STREAM")
+    driver.quit()
+    sys.exit(1)
+except NoSuchElementException:
+    pass
+
 
 # Unmute and set low latency
 for script in [js_unmute, js_low_latency]:
