@@ -29,7 +29,7 @@ do
     # Loop for each data rate
     for RATE in "${DATA_RATES[@]}"
     do
-        TRACE_FILE="${RATE}mbps.trace"s
+        TRACE_FILE="${RATE}Mbps_trace"
         CURRENT_DIR="${BASE_DIR}/${CATEGORY_NAME}/${RATE}Mbps"
         mkdir -p $CURRENT_DIR
 
