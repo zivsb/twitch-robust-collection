@@ -4,11 +4,17 @@
 DATA_RATES=("1" "3" "5")
 
 # List of category names
-# Categories: 5 each for: MOBA, RPG, IRL
+# Categories: 5 each for: MOBA, SHOOTING, SIMMULATING, RPG, IRL
 CATEGORY_NAMES=(
     "league-of-legends" "smite" "dota-2" "brawl-stars" "pokemon-unite"
-    "fortnite" "palworld" "enshrouded" "escape-from-tarkov" "roblox" "world-of-warcraft" "final-fantasy-xiv-online" "genshin-impact" "new-world" "minecraft"
-    "just-chatting" "special-events" "sports-1" "pools-hot-tubs-and-beaches" "asmr" "travel-and-outdoors"
+
+    "fortnite" "escape-from-tarkov" "call-of-duty" "tom-clancys-rainbow-six-siege" "call-of-duty-warzone"
+
+    "roblox" "palworld" "minecraft" "garrys-mod" "the-sims-4"
+    
+    "world-of-warcraft" "final-fantasy-xiv-online" "genshin-impact" "grand-theft-auto-v" "honkai-star-rail"
+
+    "just-chatting" "special-events" "sports-1" "asmr" "travel-and-outdoors"
 )
 
 # Base directory for captures
