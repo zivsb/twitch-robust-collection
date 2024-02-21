@@ -2,7 +2,8 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException, ElementNotInteractableException
+from browsermobproxy import Server
 import time
 import json
 import csv
@@ -50,23 +51,32 @@ js_analyze, js_unmute, js_low_latency, js_normal_latency = map(read_script, SCRI
 http_logs = []
 
 # Function to configure Chrome options
-def configure_chrome_options():
+def configure_chrome_options(proxy):
     options = Options()
-    options.add_argument("--headless")
+    # options.add_argument("--headless")
     options.set_capability('goog:loggingPrefs', {'browser': 'ALL', 'performance': 'ALL'})
     options.page_load_strategy = 'eager'
     options.add_experimental_option('perfLoggingPrefs', {
         'enableNetwork': True,
     })
+
+    proxy_option = f'--proxy-server={proxy.proxy}'
+    options.add_argument(proxy_option)
+    options.add_argument("--ignore-certificate-errors")
+
     return options
 
 # Function to process performance logs
 def process_performance_log(driver):
     logs = driver.get_log('performance')
+    # export the logs to a file called test
+    with open('test', 'w') as log_file:
+        json.dump(logs, log_file, indent=4)
     for entry in logs:
         log_json = json.loads(entry['message'])['message']
-        if 'Network.responseReceived' in log_json['method']:
-            http_logs.append(log_json)
+        # if 'Network.responseReceived' in log_json['method']:
+        #     http_logs.append(log_json)
+        http_logs.append(log_json)
 
 # Function to get and process new logs
 def get_new_logs(driver, last_timestamp):
@@ -113,7 +123,6 @@ def write_to_csv(data):
         writer.writerow(csv_data)
 
 
-# Function to wait for an element to be present
 def wait_for_element(driver, css_selector, timeout=45):
     end_time = time.time() + timeout
     print(f"Waiting for element with selector {css_selector}...")
@@ -122,10 +131,10 @@ def wait_for_element(driver, css_selector, timeout=45):
             element = driver.find_elements(By.CSS_SELECTOR, css_selector)
             if element:
                 return element[0]
-            elif time.time() > end_time:
-                raise TimeoutError(f"Element with selector {css_selector} not found in {timeout} seconds")
         except NoSuchElementException:
             pass
+        if time.time() > end_time:
+            raise TimeoutError(f"Element with selector {css_selector} not found in {timeout} seconds")
         time.sleep(0.05)  # Wait 50ms before trying again
 
 
@@ -150,10 +159,18 @@ def print_progress(iteration, total, prefix='Progress:', suffix='Complete', deci
     if iteration == total: 
         print()
 
+
+# Before initializin Webdriver, start browserrmob proxy
+server = Server('./browsermob-proxy-2.1.4/bin/browsermob-proxy')
+server.start()
+proxy = server.create_proxy()
+
 # Initialize WebDriver
-options = configure_chrome_options()
+options = configure_chrome_options(proxy=proxy)
 driver = webdriver.Chrome(options=options)
 
+# Start capturing HAR data
+proxy.new_har("twitch")
 
 driver.execute_script(js_analyze)
 
@@ -167,17 +184,32 @@ last_log_timestamp = 0
 # Wait for and interact with page to unlock unmute
 # See the link below for reasoning:
     #  https://developer.chrome.com/blog/autoplay/
-temp_interact_element = wait_for_element(driver, '[aria-label="About Panel"]')
-print("Page loaded")
-temp_interact_element.click()
-print("Clicked on the about panel")
-last_log_timestamp = process_logs(driver, last_log_timestamp)
+try:
+    temp_interact_element = wait_for_element(driver, '[aria-label="About Panel"]')
+    print("Page loaded")
+    temp_interact_element.click()
+    print("Clicked on the about panel")
+    last_log_timestamp = process_logs(driver, last_log_timestamp)
+except TimeoutError as e:
+    print(e)
+    print("Exiting due to element not found. | SKIPPING STREAM")
+    driver.quit()
+    server.stop()
+    sys.exit(1)
+except ElementNotInteractableException as e:
+    print(e)
+    print("Exiting due to element not interactable. | SKIPPING STREAM")
+    driver.quit()
+    server.stop()
+    sys.exit(1)
+
 
 # Make sure the stream isn't age restricted
 try:
     age_restricted_element = driver.find_element(By.CSS_SELECTOR, 'div[data-a-target="content-classification-gate-overlay"]')
     print("Age restricted content detected | SKIPPING STREAM")
     driver.quit()
+    server.stop()
     sys.exit(1)
 except NoSuchElementException:
     pass
@@ -194,7 +226,7 @@ print("Going into data collection loop...")
 # Execute the JavaScript every 100ms for 3 minutes
 total_iterations = 1800
 print_progress(0, total_iterations)
-for i in range(1800):
+for i in range(total_iterations):
     driver.execute_script(js_analyze)
     time.sleep(0.1)
     last_log_timestamp = process_logs(driver, last_log_timestamp)
@@ -207,5 +239,12 @@ process_performance_log(driver)
 with open(HTTP_LOGS_PATH, 'w') as log_file:
     json.dump(http_logs, log_file, indent=4)
 
-# Close the browser
+har_data = proxy.har
+HAR_FILE_PATH = f'{CURRENT_DIR}/twitch_har_iter{ITERATION}_{TIMESTAMP}.har'
+with open(HAR_FILE_PATH, 'w') as har_file:
+    json.dump(har_data, har_file, indent=4)
+
+
+# Clean up
 driver.quit()
+server.stop()
