@@ -58,7 +58,10 @@ do
             tcpdump -w $PCAP_FILE -i any & 
             TCPDUMP_PID=$!
 
+            # MAKE SURE the right line is commented out for traffic shaping/script testing
+
             mm-link $TRACE_FILE $TRACE_FILE -- python3 script.py $TWITCH_URL $CATEGORY_NAME $i $CURRENT_DIR $TIMESTAMP | tee temp_output.txt
+            # python3 script.py $TWITCH_URL $CATEGORY_NAME $i $CURRENT_DIR $TIMESTAMP | tee temp_output.txt
 
             if tail -n 1 temp_output.txt | grep -q 'SKIPPING STREAM'; then
                 echo "Stream was age-restricted, skipping..."
